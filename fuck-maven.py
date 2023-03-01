@@ -172,10 +172,6 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
     indent = ' ' * len(transitiveChain)
     try:
         if 'project' == pom.tag:
-            print(indent + 'Warning: misshapen POM file lacks namespace,',
-                  file=sys.stderr)
-            print(indent + '         monkey-patching the Maven namespace!',
-                  file=sys.stderr)
             for element in pom.iter():
                 element.tag = '{' + ns['mvn'] + '}' + element.tag
         properties = {}
