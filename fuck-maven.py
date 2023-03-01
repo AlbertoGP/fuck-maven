@@ -5,8 +5,8 @@
 # can **download** the **JAR** files, create a **Manifest.txt** file, and/or
 # create a **build.xml** file.
 #
-# Author: Alberto González Palomo http://matracas.org
-# ©2016 Alberto González Palomo http://matracas.org
+# Author: Alberto González Palomo https://matracas.org
+# ©2016,2023 Alberto González Palomo https://matracas.org
 # Created: 2016-11-10
 #
 #   This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,7 @@ transitive = False
 cache = './cache' # cache directory name, or empty string / False.
 scopes = ['compile','runtime'] # compile|runtime|test|provided|system
 streamBufferSize = 8192 # bytes
+repositoryMavenCentral = 'https://repo1.maven.org/maven2'
 
 def display_help():
     print(r'''Usage: pythonpp [options] pom.xml [pom2.xml]...
@@ -171,9 +172,9 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
     indent = ' ' * len(transitiveChain)
     try:
         if 'project' == pom.tag:
-            print(indent + 'ERROR: mishaped POM file lacks namespace,',
+            print(indent + 'Warning: misshapen POM file lacks namespace,',
                   file=sys.stderr)
-            print(indent + '       monkey-patching the Maven namespace!',
+            print(indent + '         monkey-patching the Maven namespace!',
                   file=sys.stderr)
             for element in pom.iter():
                 element.tag = '{' + ns['mvn'] + '}' + element.tag
@@ -201,7 +202,7 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
               file=sys.stderr)
         return
     print(' → '.join(transitiveChain))
-    repositories = []
+    repositories = [ensureTrailingSlash(repositoryMavenCentral)]
     for repository in pom.findall('./mvn:repositories/mvn:repository', ns):
         id  = evaluate(repository.find('mvn:id',  ns), properties)
         url = evaluate(repository.find('mvn:url', ns), properties)
@@ -217,7 +218,7 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
             else:
                 # The maven2/ path fragment is defined in Maven's default POM:
                 # https://maven.apache.org/guides/introduction/introduction-to-the-pom.html
-                if 'central' == id: url = 'http://repo1.maven.org/maven2'
+                if 'central' == id: url = repositoryMavenCentral
                 url = ensureTrailingSlash(url)
                 if not url in repositories: repositories.append(url)
 
@@ -229,10 +230,10 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
         if scope is None: scope = 'compile'
         if not scope in scopes: continue
 
-        groupId    = evaluate(dependency.find('mvn:groupId',    ns), properties)
-        artifactId = evaluate(dependency.find('mvn:artifactId', ns), properties)
-        version    = evaluate(dependency.find('mvn:version',    ns), properties)
-        type       = evaluate(dependency.find('mvn:type',       ns), properties)
+        groupId    = evaluate(dependency.find('mvn:groupId',    ns), dependency)
+        artifactId = evaluate(dependency.find('mvn:artifactId', ns), dependency)
+        version    = evaluate(dependency.find('mvn:version',    ns), dependency)
+        type       = evaluate(dependency.find('mvn:type',       ns), dependency)
         pathName = ''
         if groupId is None: pathName = False
         else:
@@ -443,7 +444,7 @@ for inputFile in args:
     if node is not None:
         print('Main-Class: ' + node.text)
         project['mainClass'] = node.text
-        dependencies = {}
+    dependencies = {}
     node = pom.find('./mvn:name', ns)
     if node is not None:
         project['name'] = node.text
