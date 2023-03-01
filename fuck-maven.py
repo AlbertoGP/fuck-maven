@@ -172,7 +172,7 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
     indent = ' ' * len(transitiveChain)
     try:
         if 'project' == pom.tag:
-            for element in pom.iter():
+            for element in pom.iter(): # Monkey-patch missing namespace.
                 element.tag = '{' + ns['mvn'] + '}' + element.tag
         properties = {}
         for name in ['groupId', 'artifactId', 'name', 'version',
@@ -185,7 +185,14 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
         uniqueKey = evaluate(pom.find('./mvn:groupId', ns), properties)
         if uniqueKey is None: uniqueKey = ''
         else:                 uniqueKey = uniqueKey + ':'
-        uniqueKey += evaluate(pom.find('./mvn:artifactId', ns), properties)
+        artifactId = evaluate(pom.find('./mvn:artifactId', ns), properties)
+        if artifactId is None:
+            print(indent +
+                  'Warning: wrong format in POM file,' +
+                  ' no mvn:artifactId element.',
+                  file=sys.stderr)
+            artifactId = 'artifactId-' + str(hash(pom))
+        uniqueKey += artifactId
         if uniqueKey in transitiveChain:
             print(indent + 'ERROR: dependency cycle:',
                   ' → '.join(transitiveChain), '→', uniqueKey,
@@ -193,8 +200,7 @@ def collect_dependencies(pom, dependencies, parentRepositories=[]):
             return
         transitiveChain.append(uniqueKey)
     except Exception as e:
-        print(indent +
-              'ERROR: wrong format in POM file, no mvn:artifactId element.', e,
+        print(indent + 'ERROR: collect_dependencies(): ' + str(e),
               file=sys.stderr)
         return
     print(' → '.join(transitiveChain))
